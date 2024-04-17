@@ -5,22 +5,15 @@ using System.Text.RegularExpressions;
 using System.Formats.Asn1;
 using System.Xml;
 using System.Data;
+using System.IO;
 
 namespace M03.UF5._AC3
 {
     public static class Helper
     {
-        // validar nom Xml
-        private static bool IsValidXmlName(string name)
-        {
-            return Regex.IsMatch(name, @"^[\p{L}\p{Nl}_][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}\p{Cf}]*$");
-        }
-
         // Convertir Csv a Xml
-        public static void ConvertCsvToXml(string csvPath, string xmlPath)
+        public static void CsvToXml(string csvPath, string xmlPath)
         {
-            const string ConvertOk = "Arxiu Csv convertit a Xml correctament";
-
             var records = new List<Dictionary<string, string>>();
 
             using (var reader = new StreamReader(csvPath))
@@ -52,7 +45,7 @@ namespace M03.UF5._AC3
                 foreach (var kvp in record)
                 {
                     var elementName = kvp.Key;
-                    if (!IsValidXmlName(elementName))
+                    if (!XmlNameIsValid(elementName))
                     {
                         elementName = Regex.Replace(elementName, @"[^\w\.-]", "_");
                     }
@@ -65,7 +58,12 @@ namespace M03.UF5._AC3
 
             var xmlDocument = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), root);
             xmlDocument.Save(xmlPath);
-            Console.WriteLine(ConvertOk);
+        }
+
+        // Validar nom Xml
+        private static bool XmlNameIsValid(string name)
+        {
+            return Regex.IsMatch(name, @"^[\p{L}\p{Nl}_][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}\p{Cf}]*$");
         }
 
         // Convertir csv a DataGridView
@@ -120,36 +118,16 @@ namespace M03.UF5._AC3
         // Obtenir anys
         public static List<string> GetYears(string xmlPath)
         {
-            // Llista d'anys
-            var uniqueYears = new List<string>(); // Llista d'anys sense repetir
-            var years = new List<string>(); // Llista d'anys ja llegits
+            var uniqueYears = new List<string>();
 
-            // Llegir xml
-            using (var reader = XmlReader.Create(xmlPath))
+            var xml = XDocument.Load(xmlPath);
+
+            foreach (var element in xml.Root.Elements())
             {
-
-                while (reader.ReadToFollowing("record"))
+                var year = element.Element("Any")?.Value;
+                if (year != null)
                 {
-                    var consumAigua = new ConsumAigua();
-
-                    var properties = new Dictionary<string, Action<string>>
-                {
-                    { "Any", value => consumAigua.Any = value },
-            };
-
-                    while (reader.Read() && reader.NodeType != XmlNodeType.EndElement)
-                    {
-                        if (reader.NodeType == XmlNodeType.Element && properties.TryGetValue(reader.Name, out var action))
-                        {
-                            action(Convert.ToString(reader.ReadElementContentAsString()));
-                        }
-                    }
-
-                    if (consumAigua.Any != null && !years.Contains(consumAigua.Any))
-                    {
-                        uniqueYears.Add(consumAigua.Any);
-                        years.Add(consumAigua.Any);
-                    }
+                    uniqueYears.Add(year);
                 }
             }
 
@@ -159,23 +137,48 @@ namespace M03.UF5._AC3
         // Obtenir comarques
         public static List<string> GetComarques(string xmlPath)
         {
-            var uniqueComarques = new List<string>(); // Llista de comarques sense repetir
+            var uniqueComarques = new List<string>();
 
-            using (var reader = XmlReader.Create(xmlPath))
+            var xml = XDocument.Load(xmlPath);
+
+            foreach (var element in xml.Root.Elements())
             {
-                while (reader.ReadToFollowing("record"))
+                var comarca = element.Element("Comarca")?.Value;
+                if (comarca != null)
                 {
-                    reader.ReadToDescendant("Comarca");
-                    string comarca = reader.ReadElementContentAsString();
-
-                    if (!uniqueComarques.Contains(comarca))
-                    {
-                        uniqueComarques.Add(comarca);
-                    }
+                    uniqueComarques.Add(comarca);
                 }
             }
 
             return uniqueComarques;
+        }
+
+        /* Obtenir codi de comarca */
+        public static int GetCodiComarca(string comarca)
+        {
+            const string xmlPath = "../../../fitxers/ConsumsAiguaRegio.xml";
+            var xml = XDocument.Load(xmlPath);
+
+            foreach (var element in xml.Root.Elements())
+            {
+                if (element.Element("Comarca")?.Value == comarca)
+                {
+                    return int.Parse(element.Element("Codi_comarca")?.Value);
+                }
+            }
+
+            return -1;
+        }
+
+        /* Afegir consums */
+        public static void AddConsum(ConsumAigua consum, string path)
+        {
+            using (var writer = new StreamWriter(path, true))
+            using (var csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture))
+            {
+                writer.WriteLine();
+                csv.WriteRecord(consum);
+            }
         }
     }
 }

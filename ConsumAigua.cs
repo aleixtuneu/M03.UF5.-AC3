@@ -1,20 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using CsvHelper.Configuration.Attributes;
 
 namespace M03.UF5._AC3
 {
     public class ConsumAigua
     {
-        public string? Any { get; set; }
-        public string? CodiComarca { get; set; }
+        public int Any { get; set; }
+        [Name("Codi comarca")]
+        public int Codi_Comarca { get; set; }
         public string? Comarca { get; set; }
-        public string? Poblacio { get; set; }
-        public string? XarxaDomestica { get; set; }
-        public string? ActivitatsEconomiques { get; set; }
-        public string? Total { get; set; }
-        public string? ConsumDomesticPerCapita { get; set; }
+        [Name("Població")]
+        public int Poblacio { get; set; }
+        [Name("Domèstic xarxa")]
+        public int Domestic_xarxa { get; set; }
+        [Name("Activitats econòmiques i fonts pròpies")]
+        public int Activitats_economiques_i_fonts_propies { get; set; }
+        public int Total { get; set; }
+        [Name("Consum domèstic per càpita")]
+        public double Consum_domestic_per_capita { get; set; }
     }
 }
